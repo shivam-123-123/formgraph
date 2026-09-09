@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: fgpass
       POSTGRES_DB: formgraph
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -41,7 +41,7 @@ services:
     build: .
     container_name: fg-app
     ports:
-      - "3000:3000"
+      - "3004:3000"
     environment:
       DATABASE_URL: postgres://fg:fgpass@postgres:5432/formgraph
       NEO4J_URI: bolt://neo4j:7687
