@@ -25,7 +25,7 @@ services:
       NEO4J_PLUGINS: '["apoc"]'
       NEO4J_server_memory_heap_initial__size: 512M
       NEO4J_server_memory_heap_max__size: 512M
-      NEO4J_server_memory_pagecache__size: 256M
+      NEO4J_server_memory_pagecache_size: 256M
     ports:
       - "7474:7474"   # Browser UI
       - "7687:7687"   # Bolt, for the driver
