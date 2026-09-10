@@ -24,19 +24,20 @@ export async function POST(req: Request) {
       await writeFile(path.join(dir, `${documentId}.pdf`), buffer);
     }
 
-    const { chunkCount } = await ingest({
+    const { chunkCount, entityCount, relCount } = await ingest({
       id,
       title: String(form.get("title") ?? "").trim(),
       submitter: String(form.get("submitter") ?? "").trim().toLowerCase(),
       vendor: String(form.get("vendor") ?? "").trim(),
       department: String(form.get("department") ?? "").trim(),
+      docType: String(form.get("docType") ?? "Other").trim(),
       notes: String(form.get("notes") ?? "").trim(),
       filename,
       documentId,
       pdfBuffer: buffer,
     });
 
-    return NextResponse.json({ id, documentId, chunkCount });
+    return NextResponse.json({ id, documentId, chunkCount, entityCount, relCount });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Ingestion failed";
     return NextResponse.json({ error: message }, { status: 500 });

@@ -6,14 +6,16 @@ type Turn = {
   answer: string;
   route: string;
   vendor: string | null;
+  entity: string | null;
   graphRows: Record<string, unknown>[];
   chunks: { text: string; submissionId: string; distance: number }[];
 };
 
 const EXAMPLES = [
-  "What else involves Acme Logistics?",
+  "Who knows Python?",
   "What were the payment terms in the contract?",
-  "Summarise everything we have on Acme Logistics",
+  "What else involves Acme?",
+  "Which organisations appear across our documents?",
 ];
 
 export default function ChatPage() {
@@ -49,8 +51,9 @@ export default function ChatPage() {
       <header>
         <h2>Ask</h2>
         <p>
-          Each question is routed to document search, the graph, or both. What the
-          answer was built from is shown underneath it.
+          Each question is routed to document search, the submission graph, the extracted
+          entity graph, or a combination. What the answer was built from is shown
+          underneath it, so you can see when routing picks badly.
         </p>
       </header>
 
@@ -62,6 +65,7 @@ export default function ChatPage() {
                 <div className="q">{t.question}</div>
                 <div className="routetag" data-r={t.route}>
                   Routed to <b>{t.route}</b>
+                  {t.entity ? ` · entity: ${t.entity}` : ""}
                   {t.vendor ? ` · vendor: ${t.vendor}` : ""}
                 </div>
                 <div className="a">{t.answer}</div>

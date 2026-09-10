@@ -73,3 +73,60 @@ export async function relatedPeople(email: string) {
     { email }
   );
 }
+
+/**
+ * The query that only the graph can answer: find an extracted entity by name,
+ * then walk outward to everything connected to it.
+ *
+ * "Who knows Python?" resolves to the Skill node, then traverses HAS_SKILL
+ * backwards to the people, then to the documents that mention them. Vector
+ * search cannot do this -- it finds *mentions* of Python, not a list of people.
+ */
+export async function entityNeighbourhood(name: string) {
+  return cypher<{
+    entity: string;
+    entityType: string;
+    connected: string;
+    connectedType: string;
+    relType: string;
+    documentId: string | null;
+    submissionTitle: string | null;
+  }>(
+    `
+    MATCH (e)
+    WHERE e.key IS NOT NULL
+      AND toLower(e.name) CONTAINS toLower($name)
+    MATCH (e)-[r]-(other)
+    WHERE other.key IS NOT NULL
+    OPTIONAL MATCH (d:Document)-[:MENTIONS]->(e)
+    OPTIONAL MATCH (s:Submission)-[:HAS_ATTACHMENT]->(d)
+    RETURN e.name          AS entity,
+           head(labels(e)) AS entityType,
+           other.name      AS connected,
+           head(labels(other)) AS connectedType,
+           type(r)         AS relType,
+           d.id            AS documentId,
+           s.title         AS submissionTitle
+    LIMIT 50
+    `,
+    { name }
+  );
+}
+
+/**
+ * Inventory of what extraction actually produced. Useful for the demo: it shows
+ * the schema the LLM invented, and it surfaces fragmentation ("Python",
+ * "python 3", "Py" as three separate Skill nodes) which is the entity
+ * resolution problem made visible.
+ */
+export async function graphInventory() {
+  return cypher<{ label: string; count: number; examples: string[] }>(
+    `
+    MATCH (n)
+    WHERE n.key IS NOT NULL
+    WITH head(labels(n)) AS label, collect(n.name) AS names
+    RETURN label, size(names) AS count, names[0..6] AS examples
+    ORDER BY count DESC
+    `
+  );
+}

@@ -1,13 +1,21 @@
 import { NextResponse } from "next/server";
 import { routeQuestion } from "@/lib/router";
-import { searchChunks, searchChunksInDocs, vendorNeighbourhood } from "@/lib/retrieve";
+import {
+  searchChunks,
+  searchChunksInDocs,
+  vendorNeighbourhood,
+  entityNeighbourhood,
+} from "@/lib/retrieve";
 import { complete } from "@/lib/llm";
 
 export const runtime = "nodejs";
 
 const ANSWER_SYSTEM = `You answer questions about a submissions database using only
 the context provided. If the context doesn't contain the answer, say so plainly.
-Be brief. Don't mention "context" or "chunks" — just answer.`;
+Be brief. Don't mention "context" or "chunks" — just answer.
+
+When the context lists graph relationships, name the specific people, skills or
+organisations involved rather than describing the structure abstractly.`;
 
 export async function POST(req: Request) {
   try {
@@ -24,6 +32,12 @@ export async function POST(req: Request) {
       graphRows = await vendorNeighbourhood(decision.vendor ?? "");
     }
 
+    if (decision.route === "ENTITY") {
+      // Extracted entities live under dynamic labels, so this walks outward
+      // from whatever the LLM named rather than a fixed relationship path.
+      graphRows = await entityNeighbourhood(decision.entity ?? decision.vendor ?? "");
+    }
+
     if (decision.route === "DOCUMENT") {
       chunks = await searchChunks(question);
     } else if (decision.route === "BOTH") {
@@ -34,6 +48,13 @@ export async function POST(req: Request) {
       chunks = docIds.length
         ? await searchChunksInDocs(question, docIds)
         : await searchChunks(question);
+    }
+
+    // An ENTITY question that matched nothing in the graph is usually a
+    // fragmentation miss ("Python 3" stored, "Python" asked). Fall back to
+    // vector search so the user still gets an answer.
+    if (decision.route === "ENTITY" && graphRows.length === 0) {
+      chunks = await searchChunks(question);
     }
 
     const parts: string[] = [];
@@ -57,6 +78,7 @@ export async function POST(req: Request) {
       answer,
       route: decision.route,
       vendor: decision.vendor,
+      entity: decision.entity,
       graphRows,
       chunks: chunks.map((c) => ({
         text: c.chunk_text.slice(0, 220),

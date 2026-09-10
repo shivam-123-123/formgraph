@@ -139,6 +139,8 @@ td { padding: 9px 10px 9px 0; border-bottom: 1px solid var(--rule); vertical-ali
 .routetag b { font-weight: 600; }
 .routetag[data-r="GRAPH"] b { color: var(--graph); }
 .routetag[data-r="DOCUMENT"] b { color: var(--vector); }
+.routetag[data-r="ENTITY"] b { color: var(--graph); }
+.routetag[data-r="BOTH"] b { color: var(--graph); }
 
 .ask { display: flex; gap: 10px; }
 .ask input {

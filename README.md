@@ -53,3 +53,59 @@ slow while the model loads into memory; after that a chunk takes ~100ms.
   thing that eats hours.
 - Vector index is commented out in `db/init.sql`; sequential scan is faster
   until you have thousands of chunks.
+
+---
+
+## Update: LLM-driven entity extraction
+
+The graph now has two layers.
+
+**Layer 1 — submission wrapper.** Fixed schema from form fields: Submission,
+Person, Vendor, Department, Document. Reliable, no LLM involved.
+
+**Layer 2 — document contents.** An LLM reads the attachment and decides what
+nodes and relationships to create. Upload a resume and it produces Skill,
+Company and Role nodes with `HAS_SKILL` / `WORKED_AT` edges — none of which are
+defined anywhere in the code.
+
+Dynamic labels require `apoc.merge.node`, because plain Cypher cannot
+parameterize a label. APOC was already enabled in the compose file.
+
+### Why labels are constrained but properties aren't
+
+Fully open extraction drifts: one document yields `Organization`, the next
+`Company`, the next `Employer`, and queries then match a third of the graph.
+`src/lib/extract.ts` pins the label list and leaves properties and relationship
+types free.
+
+### Entity resolution — the actual hard part
+
+Extraction is a library call. Making the result trustworthy is not.
+
+Three resumes will produce `Python`, `python` and `Python 3` as separate Skill
+nodes. Each carries a few edges. None connect. Ask "who knows Python" and you
+get a third of the answer.
+
+`entityKey()` normalizes case, whitespace and punctuation before merging. That
+catches `Python` vs `python`. It does **not** catch `Python 3`, `Py`, or
+`SCCRTC` vs `Santa Cruz RTC` — those need embedding similarity or an LLM
+adjudicating candidate pairs.
+
+This is worth demoing rather than hiding: run `MATCH (n:Skill) RETURN n.name`
+after a few resumes and the fragmentation is visible. Published work argues that
+without entity resolution, graph RAG degrades into ordinary vector search,
+because unresolved entities leave the graph with no traversable edges.
+
+### Migration
+
+`db/init.sql` only runs on a fresh Postgres volume. With existing data:
+
+    docker compose exec -T postgres psql -U fg -d formgraph \
+      < db/migrate-001-extraction.sql
+
+### Cost note
+
+Extraction sends up to 14k characters per document to the LLM, on top of the
+per-question calls. A production version extracts per-chunk and merges, which
+multiplies spend by the chunk count. Purpose-built extraction models (e.g.
+Triplex, a 3B finetune) are several times cheaper than a frontier model here.

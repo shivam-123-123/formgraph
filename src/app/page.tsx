@@ -7,8 +7,11 @@ type Row = {
   submitter: string;
   vendor: string;
   department: string;
+  doc_type: string;
   status: string;
   chunk_count: number;
+  entity_count: number;
+  rel_count: number;
   error: string | null;
 };
 
@@ -41,7 +44,9 @@ export default function FormPage() {
       if (!res.ok) throw new Error(data.error ?? "Submission failed");
       setNote({
         ok: true,
-        text: `Saved ${data.id}. ${data.chunkCount} chunks embedded, graph updated.`,
+        text:
+          `Saved ${data.id}. ${data.chunkCount} chunks embedded, ` +
+          `${data.entityCount} entities and ${data.relCount} relationships extracted.`,
       });
       form.reset();
       loadRows();
@@ -57,9 +62,9 @@ export default function FormPage() {
       <header>
         <h2>New submission</h2>
         <p>
-          The form fields become nodes and relationships in Neo4j. The attachment is
-          chunked and embedded into pgvector. Both keep the same submission ID as the
-          Postgres row.
+          Form fields become the submission wrapper in Neo4j. The attachment is chunked
+          into pgvector, and its contents are read by an LLM which decides for itself
+          what entities and relationships to create — no schema defined in advance.
         </p>
       </header>
 
@@ -91,6 +96,17 @@ export default function FormPage() {
         </div>
 
         <div className="field">
+          <label htmlFor="docType">Document type</label>
+          <select id="docType" name="docType" defaultValue="Contract">
+            <option>Contract</option>
+            <option>Resume</option>
+            <option>Invoice</option>
+            <option>Report</option>
+            <option>Other</option>
+          </select>
+        </div>
+
+        <div className="field">
           <label htmlFor="notes">Notes</label>
           <textarea id="notes" name="notes" placeholder="Anything worth recording" />
         </div>
@@ -110,8 +126,10 @@ export default function FormPage() {
       <header style={{ marginTop: 38 }}>
         <h2>Submitted</h2>
         <p>
-          Submit two forms naming the same vendor, then open the Neo4j Browser and run{" "}
-          <code>MATCH (n) RETURN n</code> to see them join through one vendor node.
+          Submit two resumes that share a skill, then open the Neo4j Browser and run{" "}
+          <code>MATCH (n) RETURN n</code>. The candidates join through one skill node that
+          nothing in the code linked. Fragmented duplicates you see there are the entity
+          resolution problem, not a bug.
         </p>
       </header>
 
@@ -128,6 +146,7 @@ export default function FormPage() {
                 <th>Vendor</th>
                 <th>Submitter</th>
                 <th>Chunks</th>
+                <th>Extracted</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -140,9 +159,15 @@ export default function FormPage() {
                       {r.id}
                     </div>
                   </td>
-                  <td>{r.vendor}</td>
+                  <td>
+                    {r.vendor}
+                    <div style={{ fontSize: 11.5, color: "var(--muted)" }}>{r.doc_type}</div>
+                  </td>
                   <td>{r.submitter}</td>
                   <td className="mono">{r.chunk_count}</td>
+                  <td className="mono">
+                    {r.entity_count}n / {r.rel_count}r
+                  </td>
                   <td>
                     <span className="pill" data-s={r.status}>
                       {r.status}
