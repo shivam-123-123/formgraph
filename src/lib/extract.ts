@@ -73,7 +73,7 @@ Rules:
 - Use ONE form of each name. If the document says both "Santa Cruz County
   Regional Transportation Commission" and "SCCRTC", emit one node with the
   fuller name.
-- props must be flat. No nested objects, no arrays.
+- props must be flat. No nested objects, no arrays. Keep values under 10 words.
 - Extract what the document states. Do not infer or embellish.
 - Aim for 10-30 nodes. Skip incidental mentions.`;
 
